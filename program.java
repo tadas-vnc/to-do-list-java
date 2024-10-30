@@ -1,7 +1,10 @@
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.*;
 import java.util.*;
+import java.util.List;
 
 class Theme {
     private final Color background;
@@ -141,37 +144,54 @@ class ToDoListApp extends JFrame {
     private JTextField inputField;
     private JComboBox<String> themeSelector;
     private JPanel buttonPanel;
-     public ToDoListApp() {
+    
+    public ToDoListApp() {
         setTitle("To-Do List");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 500);
+        setSize(520, 400);
         setLayout(new BorderLayout(10, 10));
+        
         listModel = new DefaultListModel<>();
         todoList = new JList<>(listModel);
         todoList.setCellRenderer(new TodoListCellRenderer());
+        
         inputField = new JTextField();
         JButton addButton = new JButton("Add");
         JButton removeButton = new JButton("Remove");
         JButton clearAllButton = new JButton("Clear All");
         JButton toggleDoneButton = new JButton("Toggle Done");
+        JButton saveButton = new JButton("Save");
+        JButton saveAsButton = new JButton("Save As");
+        JButton openButton = new JButton("Open");
+        
         themeSelector = new JComboBox<>(ThemeManager.getThemeNames());
+        
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
+        
         JPanel themePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         themePanel.add(new JLabel("Theme: "));
         themePanel.add(themeSelector);
+        
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
         inputPanel.add(inputField, BorderLayout.CENTER);
         inputPanel.add(addButton, BorderLayout.EAST);
+        
         topPanel.add(themePanel, BorderLayout.NORTH);
         topPanel.add(inputPanel, BorderLayout.SOUTH);
+        
         buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
         buttonPanel.add(toggleDoneButton);
         buttonPanel.add(removeButton);
         buttonPanel.add(clearAllButton);
+        buttonPanel.add(saveButton);
+        buttonPanel.add(saveAsButton);
+        buttonPanel.add(openButton);
+        
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(todoList), BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
+        
         addButton.addActionListener(e -> addItem());
         inputField.addActionListener(e -> addItem());
         removeButton.addActionListener(e -> {
@@ -191,15 +211,23 @@ class ToDoListApp extends JFrame {
                 todoList.repaint();
             }
         });
+        
         themeSelector.addActionListener(e -> applyTheme((String) themeSelector.getSelectedItem()));
+        
+        saveButton.addActionListener(e -> saveToFile(false));
+        saveAsButton.addActionListener(e -> saveToFile(true));
+        openButton.addActionListener(e -> loadFromFile());
+        
         applyTheme("Default");
     }
     
-     private void applyTheme(String themeName) {
+    private void applyTheme(String themeName) {
         Theme theme = ThemeManager.getTheme(themeName);
         if (theme == null) return;
+        
         getContentPane().setBackground(theme.getBackground());
         getContentPane().setForeground(theme.getForeground());
+        
         applyThemeToContainer(getContentPane(), theme);
         
         buttonPanel.setBackground(theme.getBackground());
@@ -214,13 +242,11 @@ class ToDoListApp extends JFrame {
             }
         }
         
-        // Update the list colors
         todoList.setBackground(theme.getListBackground());
         todoList.setForeground(theme.getListForeground());
         todoList.setSelectionBackground(theme.getSelectionBackground());
         todoList.setSelectionForeground(theme.getSelectionForeground());
         
-        // Force repaint
         SwingUtilities.updateComponentTreeUI(this);
     }
     
@@ -255,9 +281,75 @@ class ToDoListApp extends JFrame {
             inputField.setText("");
         }
     }
+    
+    private void saveToFile(boolean saveAs) {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save To-Do List");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("To-Do List Files", "ser");
+        fileChooser.setFileFilter(filter);
+        
+        int userSelection = saveAs ? fileChooser.showSaveDialog(this) : fileChooser.showDialog(this, "Save");
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            String filename = file.getAbsolutePath();
+            if (!filename.endsWith(".ser")) {
+                file = new File(filename + ".ser");
+            }
+            
+            try {
+                saveToFile(file);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error saving file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    private void saveToFile(File file) throws IOException {
+        List<TodoItem> items = new ArrayList<>();
+        for (int i = 0; i < listModel.size(); i++) {
+            items.add(listModel.get(i));
+        }
+        
+        String selectedTheme = (String) themeSelector.getSelectedItem();
+        
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(file))) {
+            out.writeObject(items);
+            out.writeObject(selectedTheme);
+        }
+    }
+    
+    private void loadFromFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Open To-Do List");
+        FileNameExtensionFilter filter = new FileNameExtensionFilter("To-Do List Files", "ser");
+        fileChooser.setFileFilter(filter);
+        
+        int userSelection = fileChooser.showOpenDialog(this);
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                loadFromFile(file);
+            } catch (IOException | ClassNotFoundException e) {
+                JOptionPane.showMessageDialog(this, "Error loading file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void loadFromFile(File file) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
+            List<TodoItem> items = (List<TodoItem>) in.readObject();
+            listModel.clear();
+            items.forEach(listModel::addElement);
+            
+            String themeName = (String) in.readObject();
+            themeSelector.setSelectedItem(themeName);
+            applyTheme(themeName);
+        }
+    }
 }
 
-class TodoItem {
+class TodoItem implements Serializable {
     private String text;
     private boolean isDone;
     
