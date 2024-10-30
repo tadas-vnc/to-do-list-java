@@ -146,42 +146,32 @@ class ToDoListApp extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(400, 500);
         setLayout(new BorderLayout(10, 10));
-        
         listModel = new DefaultListModel<>();
         todoList = new JList<>(listModel);
         todoList.setCellRenderer(new TodoListCellRenderer());
-        
         inputField = new JTextField();
         JButton addButton = new JButton("Add");
         JButton removeButton = new JButton("Remove");
         JButton clearAllButton = new JButton("Clear All");
         JButton toggleDoneButton = new JButton("Toggle Done");
-        
         themeSelector = new JComboBox<>(ThemeManager.getThemeNames());
-        
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
-        
         JPanel themePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         themePanel.add(new JLabel("Theme: "));
         themePanel.add(themeSelector);
-        
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
         inputPanel.add(inputField, BorderLayout.CENTER);
         inputPanel.add(addButton, BorderLayout.EAST);
-        
         topPanel.add(themePanel, BorderLayout.NORTH);
         topPanel.add(inputPanel, BorderLayout.SOUTH);
-        
         buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
         buttonPanel.add(toggleDoneButton);
         buttonPanel.add(removeButton);
         buttonPanel.add(clearAllButton);
-        
         add(topPanel, BorderLayout.NORTH);
         add(new JScrollPane(todoList), BorderLayout.CENTER);
         add(buttonPanel, BorderLayout.SOUTH);
-        
         addButton.addActionListener(e -> addItem());
         inputField.addActionListener(e -> addItem());
         removeButton.addActionListener(e -> {
@@ -201,34 +191,25 @@ class ToDoListApp extends JFrame {
                 todoList.repaint();
             }
         });
-        
         themeSelector.addActionListener(e -> applyTheme((String) themeSelector.getSelectedItem()));
-        
         applyTheme("Default");
     }
     
      private void applyTheme(String themeName) {
         Theme theme = ThemeManager.getTheme(themeName);
         if (theme == null) return;
-        
-        // Apply colors to the frame
         getContentPane().setBackground(theme.getBackground());
         getContentPane().setForeground(theme.getForeground());
-        
-        // Apply to all panels and their components recursively
         applyThemeToContainer(getContentPane(), theme);
         
-        // Apply theme specifically to buttonPanel and its buttons
         buttonPanel.setBackground(theme.getBackground());
         for (Component comp : buttonPanel.getComponents()) {
             if (comp instanceof JButton) {
                 JButton button = (JButton) comp;
                 button.setBackground(theme.getButtonBackground());
                 button.setForeground(theme.getButtonForeground());
-                // Make sure the button background is visible
                 button.setOpaque(true);
                 button.setBorderPainted(true);
-                // For modern look on some L&Fs
                 button.setFocusPainted(false);
             }
         }
